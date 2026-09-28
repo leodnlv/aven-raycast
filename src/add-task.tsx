@@ -12,6 +12,15 @@ const AVEN_ENV = { ...process.env, PATH: AVEN_PATH };
 type Workspace = { key: string; name: string };
 type Project = { key: string; name: string; prefix: string };
 
+const STATUSES = [
+  { value: "inbox", title: "Inbox" },
+  { value: "backlog", title: "Backlog" },
+  { value: "todo", title: "Todo" },
+  { value: "active", title: "Active" },
+  { value: "done", title: "Done" },
+  { value: "canceled", title: "Canceled" },
+];
+
 function parseWorkspaces(output: string): Workspace[] {
   return output
     .split("\n")
@@ -29,6 +38,7 @@ export default function Command() {
 
   const [workspaceKey, setWorkspaceKey] = useState<string>("");
   const [projectKey, setProjectKey] = useState<string>("");
+  const [status, setStatus] = useState<string>("inbox");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,7 +92,7 @@ export default function Command() {
 
     setIsSubmitting(true);
     try {
-      const args = ["add", title, "--workspace", workspaceKey, "--project", projectKey];
+      const args = ["add", title, "--workspace", workspaceKey, "--project", projectKey, "--status", status];
       if (description.trim()) {
         args.push("--description", description);
       }
@@ -117,6 +127,11 @@ export default function Command() {
       <Form.Dropdown id="project" title="Project" value={projectKey} onChange={setProjectKey}>
         {projects.map((project) => (
           <Form.Dropdown.Item key={project.key} value={project.key} title={project.name} />
+        ))}
+      </Form.Dropdown>
+      <Form.Dropdown id="status" title="Status" value={status} onChange={setStatus}>
+        {STATUSES.map((item) => (
+          <Form.Dropdown.Item key={item.value} value={item.value} title={item.title} />
         ))}
       </Form.Dropdown>
       <Form.TextField id="title" title="Title" placeholder="Task title" value={title} onChange={setTitle} />
