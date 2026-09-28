@@ -24,6 +24,13 @@ On submit, the extension runs:
 aven add "<title>" --workspace <workspace> --project <project> [--description "<description>"]
 ```
 
+## Preferences
+
+- **Default Workspace** — workspace key to preselect on open.
+- **Default Project** — project key to preselect on open.
+
+Both are optional. If the saved key doesn't match an available workspace/project (e.g. it was renamed or deleted), the extension falls back to the first item in the list.
+
 ## Development
 
 ```

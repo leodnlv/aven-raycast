@@ -22,6 +22,24 @@
       "mode": "view"
     }
   ],
+  "preferences": [
+    {
+      "name": "defaultWorkspace",
+      "title": "Default Workspace",
+      "description": "Workspace key to preselect when adding a task. Falls back to the first available workspace if not found.",
+      "type": "textfield",
+      "placeholder": "e.g. default",
+      "required": false
+    },
+    {
+      "name": "defaultProject",
+      "title": "Default Project",
+      "description": "Project key to preselect when adding a task. Falls back to the first available project in the selected workspace if not found.",
+      "type": "textfield",
+      "placeholder": "e.g. your-project",
+      "required": false
+    }
+  ],
   "tools": [],
   "dependencies": {
     "@raycast/api": "^1.104.20",

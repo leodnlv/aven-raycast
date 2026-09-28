@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
-import { Form, ActionPanel, Action, showToast, Toast, popToRoot } from "@raycast/api";
+import { Form, ActionPanel, Action, showToast, Toast, popToRoot, getPreferenceValues } from "@raycast/api";
 import { useExec } from "@raycast/utils";
 
 const execFile = promisify(execFileCallback);
@@ -25,6 +25,8 @@ function parseWorkspaces(output: string): Workspace[] {
 }
 
 export default function Command() {
+  const preferences = getPreferenceValues<Preferences.AddTask>();
+
   const [workspaceKey, setWorkspaceKey] = useState<string>("");
   const [projectKey, setProjectKey] = useState<string>("");
   const [title, setTitle] = useState("");
@@ -38,10 +40,10 @@ export default function Command() {
   const workspaces = useMemo(() => (workspacesOutput ? parseWorkspaces(workspacesOutput) : []), [workspacesOutput]);
 
   useEffect(() => {
-    if (!workspaceKey && workspaces.length > 0) {
-      setWorkspaceKey(workspaces[0].key);
-    }
-  }, [workspaces, workspaceKey]);
+    if (workspaceKey || workspaces.length === 0) return;
+    const preferred = workspaces.find((workspace) => workspace.key === preferences.defaultWorkspace);
+    setWorkspaceKey((preferred ?? workspaces[0]).key);
+  }, [workspaces, workspaceKey, preferences.defaultWorkspace]);
 
   const { data: projectsOutput, isLoading: isLoadingProjects } = useExec(
     "aven",
@@ -59,12 +61,14 @@ export default function Command() {
   }, [projectsOutput]);
 
   useEffect(() => {
-    if (projects.length > 0 && !projects.some((project) => project.key === projectKey)) {
-      setProjectKey(projects[0].key);
-    } else if (projects.length === 0 && projectKey !== "") {
-      setProjectKey("");
+    if (projects.length === 0) {
+      if (projectKey !== "") setProjectKey("");
+      return;
     }
-  }, [projects, projectKey]);
+    if (projects.some((project) => project.key === projectKey)) return;
+    const preferred = projects.find((project) => project.key === preferences.defaultProject);
+    setProjectKey((preferred ?? projects[0]).key);
+  }, [projects, projectKey, preferences.defaultProject]);
 
   async function handleSubmit() {
     if (!title.trim()) {
