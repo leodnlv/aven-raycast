@@ -3,8 +3,8 @@
   "name": "aven",
   "title": "Aven",
   "description": "Plugin to integrate into \"aven\" CLI and TUI task manager",
-  "icon": "extension-icon.png",
-  "author": "Infonautica",
+  "icon": "icon.png",
+  "author": "leodnlv",
   "platforms": [
     "Windows",
     "macOS"
