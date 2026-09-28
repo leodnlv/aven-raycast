@@ -1,40 +1,128 @@
-import { Form, ActionPanel, Action, showToast } from "@raycast/api";
+import { useEffect, useMemo, useState } from "react";
+import { promisify } from "node:util";
+import { execFile as execFileCallback } from "node:child_process";
+import { Form, ActionPanel, Action, showToast, Toast, popToRoot } from "@raycast/api";
+import { useExec } from "@raycast/utils";
 
-type Values = {
-  textfield: string;
-  textarea: string;
-  datepicker: Date;
-  checkbox: boolean;
-  dropdown: string;
-  tokeneditor: string[];
-};
+const execFile = promisify(execFileCallback);
+
+const AVEN_PATH = `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`;
+const AVEN_ENV = { ...process.env, PATH: AVEN_PATH };
+
+type Workspace = { key: string; name: string };
+type Project = { key: string; name: string; prefix: string };
+
+function parseWorkspaces(output: string): Workspace[] {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const key = line.split(" ")[0];
+      const nameMatch = line.match(/name="([^"]*)"/);
+      return { key, name: nameMatch ? nameMatch[1] : key };
+    });
+}
 
 export default function Command() {
-  function handleSubmit(values: Values) {
-    console.log(values);
-    showToast({ title: "Submitted form", message: "See logs for submitted values" });
+  const [workspaceKey, setWorkspaceKey] = useState<string>("");
+  const [projectKey, setProjectKey] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: workspacesOutput, isLoading: isLoadingWorkspaces } = useExec("aven", ["workspace", "list"], {
+    env: AVEN_ENV,
+  });
+
+  const workspaces = useMemo(() => (workspacesOutput ? parseWorkspaces(workspacesOutput) : []), [workspacesOutput]);
+
+  useEffect(() => {
+    if (!workspaceKey && workspaces.length > 0) {
+      setWorkspaceKey(workspaces[0].key);
+    }
+  }, [workspaces, workspaceKey]);
+
+  const { data: projectsOutput, isLoading: isLoadingProjects } = useExec(
+    "aven",
+    ["project", "list", "--json", "--workspace", workspaceKey],
+    { env: AVEN_ENV, execute: workspaceKey !== "" },
+  );
+
+  const projects = useMemo<Project[]>(() => {
+    if (!projectsOutput) return [];
+    try {
+      return JSON.parse(projectsOutput) as Project[];
+    } catch {
+      return [];
+    }
+  }, [projectsOutput]);
+
+  useEffect(() => {
+    if (projects.length > 0 && !projects.some((project) => project.key === projectKey)) {
+      setProjectKey(projects[0].key);
+    } else if (projects.length === 0 && projectKey !== "") {
+      setProjectKey("");
+    }
+  }, [projects, projectKey]);
+
+  async function handleSubmit() {
+    if (!title.trim()) {
+      await showToast({ style: Toast.Style.Failure, title: "Title is required" });
+      return;
+    }
+    if (!workspaceKey || !projectKey) {
+      await showToast({ style: Toast.Style.Failure, title: "Workspace and project are required" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const args = ["add", title, "--workspace", workspaceKey, "--project", projectKey];
+      if (description.trim()) {
+        args.push("--description", description);
+      }
+      await execFile("aven", args, { env: AVEN_ENV });
+      await showToast({ style: Toast.Style.Success, title: "Task created" });
+      await popToRoot();
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to create task",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <Form
+      isLoading={isLoadingWorkspaces || isLoadingProjects || isSubmitting}
       actions={
         <ActionPanel>
-          <Action.SubmitForm onSubmit={handleSubmit} />
+          <Action.SubmitForm title="Create Task" onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
-      <Form.Description text="This form showcases all available form elements." />
-      <Form.TextField id="textfield" title="Text field" placeholder="Enter text" defaultValue="Raycast" />
-      <Form.TextArea id="textarea" title="Text area" placeholder="Enter multi-line text" />
-      <Form.Separator />
-      <Form.DatePicker id="datepicker" title="Date picker" />
-      <Form.Checkbox id="checkbox" title="Checkbox" label="Checkbox Label" storeValue />
-      <Form.Dropdown id="dropdown" title="Dropdown">
-        <Form.Dropdown.Item value="dropdown-item" title="Dropdown Item" />
+      <Form.Dropdown id="workspace" title="Workspace" value={workspaceKey} onChange={setWorkspaceKey}>
+        {workspaces.map((workspace) => (
+          <Form.Dropdown.Item key={workspace.key} value={workspace.key} title={workspace.name} />
+        ))}
       </Form.Dropdown>
-      <Form.TagPicker id="tokeneditor" title="Tag picker">
-        <Form.TagPicker.Item value="tagpicker-item" title="Tag Picker Item" />
-      </Form.TagPicker>
+      <Form.Dropdown id="project" title="Project" value={projectKey} onChange={setProjectKey}>
+        {projects.map((project) => (
+          <Form.Dropdown.Item key={project.key} value={project.key} title={project.name} />
+        ))}
+      </Form.Dropdown>
+      <Form.TextField id="title" title="Title" placeholder="Task title" value={title} onChange={setTitle} />
+      <Form.TextArea
+        id="description"
+        title="Description"
+        placeholder="Markdown description (optional)"
+        value={description}
+        onChange={setDescription}
+      />
     </Form>
   );
 }
