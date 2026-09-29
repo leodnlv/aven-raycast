@@ -7,6 +7,7 @@ Raycast extension that shells out to the `aven` CLI (local-first task manager). 
 - `npm run dev` — `ray develop` (live-reload in Raycast)
 - `npm run lint` — `ray lint` (ESLint + Prettier + manifest/icon checks)
 - `npm run build` — `ray build` (type-checks and bundles)
+- `npm run test` — `vitest run` (unit tests for pure logic in `src/lib.ts`)
 
 Always run `npm run build` and `npm run lint` after touching `src/` — `ray build` runs its own `tsc` pass independent of any editor/LSP diagnostics.
 

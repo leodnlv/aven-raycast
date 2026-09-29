@@ -3,14 +3,12 @@ import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 import { Form, ActionPanel, Action, showToast, Toast, popToRoot, getPreferenceValues } from "@raycast/api";
 import { useExec } from "@raycast/utils";
+import { buildAddTaskArgs, parseWorkspaces, validateTaskForm, type Project } from "./lib";
 
 const execFile = promisify(execFileCallback);
 
 const AVEN_PATH = `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`;
 const AVEN_ENV = { ...process.env, PATH: AVEN_PATH };
-
-type Workspace = { key: string; name: string };
-type Project = { key: string; name: string; prefix: string };
 
 const STATUSES = [
   { value: "inbox", title: "Inbox" },
@@ -20,18 +18,6 @@ const STATUSES = [
   { value: "done", title: "Done" },
   { value: "canceled", title: "Canceled" },
 ];
-
-function parseWorkspaces(output: string): Workspace[] {
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const key = line.split(" ")[0];
-      const nameMatch = line.match(/name="([^"]*)"/);
-      return { key, name: nameMatch ? nameMatch[1] : key };
-    });
-}
 
 export default function Command() {
   const preferences = getPreferenceValues<Preferences.AddTask>();
@@ -81,21 +67,15 @@ export default function Command() {
   }, [projects, projectKey, preferences.defaultProject]);
 
   async function handleSubmit() {
-    if (!title.trim()) {
-      await showToast({ style: Toast.Style.Failure, title: "Title is required" });
-      return;
-    }
-    if (!workspaceKey || !projectKey) {
-      await showToast({ style: Toast.Style.Failure, title: "Workspace and project are required" });
+    const validationError = validateTaskForm({ title, workspaceKey, projectKey });
+    if (validationError) {
+      await showToast({ style: Toast.Style.Failure, title: validationError });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const args = ["add", title, "--workspace", workspaceKey, "--project", projectKey, "--status", status];
-      if (description.trim()) {
-        args.push("--description", description);
-      }
+      const args = buildAddTaskArgs({ title, workspaceKey, projectKey, status, description });
       await execFile("aven", args, { env: AVEN_ENV });
       await showToast({ style: Toast.Style.Success, title: "Task created" });
       await popToRoot();
