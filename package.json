@@ -4,7 +4,7 @@
   "title": "Aven",
   "description": "Plugin to integrate into \"aven\" CLI and TUI task manager",
   "icon": "icon.png",
-  "author": "leodnlv",
+  "author": "Infonautica",
   "platforms": [
     "Windows",
     "macOS"
