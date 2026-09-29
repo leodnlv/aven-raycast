@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "aven",
   "title": "Aven",
-  "description": "Plugin to integrate into \"aven\" CLI and TUI task manager",
+  "description": "Raycast extension for the aven task manager.",
   "icon": "icon.png",
   "author": "Infonautica",
   "platforms": [
@@ -17,7 +17,6 @@
     {
       "name": "add-task",
       "title": "Add Task",
-      "subtitle": "Add Task to aven",
       "description": "Adds a new task to specified Workspace and project in aven CLI",
       "mode": "view"
     }

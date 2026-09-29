@@ -15,13 +15,14 @@ Creates a new task in `aven`.
 
 - **Workspace** — dropdown populated from `aven workspace list`.
 - **Project** — dropdown populated from `aven project list --json --workspace <workspace>`, scoped to the selected workspace.
+- **Status** — dropdown of `aven`'s task statuses (Inbox, Backlog, Todo, Active, Done, Canceled), defaulting to Inbox.
 - **Title** — required.
 - **Description** — optional Markdown description.
 
 On submit, the extension runs:
 
 ```
-aven add "<title>" --workspace <workspace> --project <project> [--description "<description>"]
+aven add "<title>" --workspace <workspace> --project <project> --status <status> [--description "<description>"]
 ```
 
 ## Preferences
