@@ -30,7 +30,11 @@ export default function Command() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitInFlight = useRef(false);
 
-  const { data: workspacesOutput, isLoading: isLoadingWorkspaces } = useExec("aven", ["workspace", "list"], {
+  const {
+    data: workspacesOutput,
+    isLoading: isLoadingWorkspaces,
+    error: workspacesError,
+  } = useExec("aven", ["workspace", "list"], {
     env: AVEN_ENV,
   });
 
@@ -42,11 +46,14 @@ export default function Command() {
     setWorkspaceKey((preferred ?? workspaces[0]).key);
   }, [workspaces, workspaceKey, preferences.defaultWorkspace]);
 
-  const { data: projectsOutput, isLoading: isLoadingProjects } = useExec(
-    "aven",
-    ["project", "list", "--json", "--workspace", workspaceKey],
-    { env: AVEN_ENV, execute: workspaceKey !== "" },
-  );
+  const {
+    data: projectsOutput,
+    isLoading: isLoadingProjects,
+    error: projectsError,
+  } = useExec("aven", ["project", "list", "--json", "--workspace", workspaceKey], {
+    env: AVEN_ENV,
+    execute: workspaceKey !== "",
+  });
 
   const projects = useMemo<Project[]>(() => {
     if (!projectsOutput) return [];
@@ -67,8 +74,15 @@ export default function Command() {
     setProjectKey((preferred ?? projects[0]).key);
   }, [projects, projectKey, preferences.defaultProject]);
 
+  const listError = workspacesError ?? projectsError;
+
   async function handleSubmit() {
     if (submitInFlight.current) return;
+
+    if (listError) {
+      await showToast({ style: Toast.Style.Failure, title: "Failed to load from aven", message: listError.message });
+      return;
+    }
 
     const validationError = validateTaskForm({ title, workspaceKey, projectKey });
     if (validationError) {
@@ -104,6 +118,7 @@ export default function Command() {
         </ActionPanel>
       }
     >
+      {listError && <Form.Description title="Error" text={listError.message} />}
       <Form.Dropdown id="workspace" title="Workspace" value={workspaceKey} onChange={setWorkspaceKey}>
         {workspaces.map((workspace) => (
           <Form.Dropdown.Item key={workspace.key} value={workspace.key} title={workspace.name} />
