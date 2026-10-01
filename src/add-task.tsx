@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 import { Form, ActionPanel, Action, showToast, Toast, popToRoot, getPreferenceValues } from "@raycast/api";
@@ -28,6 +28,7 @@ export default function Command() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
 
   const { data: workspacesOutput, isLoading: isLoadingWorkspaces } = useExec("aven", ["workspace", "list"], {
     env: AVEN_ENV,
@@ -67,12 +68,15 @@ export default function Command() {
   }, [projects, projectKey, preferences.defaultProject]);
 
   async function handleSubmit() {
+    if (submitInFlight.current) return;
+
     const validationError = validateTaskForm({ title, workspaceKey, projectKey });
     if (validationError) {
       await showToast({ style: Toast.Style.Failure, title: validationError });
       return;
     }
 
+    submitInFlight.current = true;
     setIsSubmitting(true);
     try {
       const args = buildAddTaskArgs({ title, workspaceKey, projectKey, status, description });
@@ -87,6 +91,7 @@ export default function Command() {
       });
     } finally {
       setIsSubmitting(false);
+      submitInFlight.current = false;
     }
   }
 
