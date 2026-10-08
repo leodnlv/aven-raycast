@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 import { Form, ActionPanel, Action, showToast, Toast, popToRoot, getPreferenceValues } from "@raycast/api";
-import { useExec } from "@raycast/utils";
+import { showFailureToast, useExec } from "@raycast/utils";
 import { buildAddTaskArgs, parseWorkspaces, validateTaskForm, type Project } from "./lib";
 
 const execFile = promisify(execFileCallback);
 
-const AVEN_PATH = `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`;
+const AVEN_PATH = `${process.env.HOME}/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? ""}`;
 const AVEN_ENV = { ...process.env, PATH: AVEN_PATH };
 
 const STATUSES = [
@@ -80,7 +80,7 @@ export default function Command() {
     if (submitInFlight.current) return;
 
     if (listError) {
-      await showToast({ style: Toast.Style.Failure, title: "Failed to load from aven", message: listError.message });
+      await showFailureToast(listError, { title: "Failed to load from aven" });
       return;
     }
 
@@ -98,11 +98,7 @@ export default function Command() {
       await showToast({ style: Toast.Style.Success, title: "Task created" });
       await popToRoot();
     } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Failed to create task",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      await showFailureToast(error, { title: "Failed to create task" });
     } finally {
       setIsSubmitting(false);
       submitInFlight.current = false;
