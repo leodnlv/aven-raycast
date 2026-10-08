@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
 import { Form, ActionPanel, Action, showToast, Toast, popToRoot, getPreferenceValues } from "@raycast/api";
 import { showFailureToast, useExec } from "@raycast/utils";
-import { buildAddTaskArgs, parseWorkspaces, validateTaskForm, type Project } from "./lib";
+import { buildAddTaskArgs, parseWorkspaces, resolveSelection, validateTaskForm, type Project } from "./lib";
 
 const execFile = promisify(execFileCallback);
 
@@ -22,8 +22,8 @@ const STATUSES = [
 export default function Command() {
   const preferences = getPreferenceValues<Preferences.AddTask>();
 
-  const [workspaceKey, setWorkspaceKey] = useState<string>("");
-  const [projectKey, setProjectKey] = useState<string>("");
+  const [chosenWorkspace, setChosenWorkspace] = useState<string>("");
+  const [chosenProject, setChosenProject] = useState<string>("");
   const [status, setStatus] = useState<string>("inbox");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -40,11 +40,7 @@ export default function Command() {
 
   const workspaces = useMemo(() => (workspacesOutput ? parseWorkspaces(workspacesOutput) : []), [workspacesOutput]);
 
-  useEffect(() => {
-    if (workspaceKey || workspaces.length === 0) return;
-    const preferred = workspaces.find((workspace) => workspace.key === preferences.defaultWorkspace);
-    setWorkspaceKey((preferred ?? workspaces[0]).key);
-  }, [workspaces, workspaceKey, preferences.defaultWorkspace]);
+  const workspaceKey = resolveSelection(workspaces, chosenWorkspace, preferences.defaultWorkspace);
 
   const {
     data: projectsOutput,
@@ -64,17 +60,14 @@ export default function Command() {
     }
   }, [projectsOutput]);
 
-  useEffect(() => {
-    if (projects.length === 0) {
-      if (projectKey !== "") setProjectKey("");
-      return;
-    }
-    if (projects.some((project) => project.key === projectKey)) return;
-    const preferred = projects.find((project) => project.key === preferences.defaultProject);
-    setProjectKey((preferred ?? projects[0]).key);
-  }, [projects, projectKey, preferences.defaultProject]);
+  const projectKey = resolveSelection(projects, chosenProject, preferences.defaultProject);
 
   const listError = workspacesError ?? projectsError;
+
+  function handleWorkspaceChange(key: string) {
+    setChosenWorkspace(key);
+    setChosenProject("");
+  }
 
   async function handleSubmit() {
     if (submitInFlight.current) return;
@@ -105,6 +98,11 @@ export default function Command() {
     }
   }
 
+  const isInitialLoad =
+    !listError && (workspacesOutput === undefined || (workspaces.length > 0 && projectsOutput === undefined));
+
+  if (isInitialLoad) return <Form isLoading />;
+
   return (
     <Form
       isLoading={isLoadingWorkspaces || isLoadingProjects || isSubmitting}
@@ -115,12 +113,12 @@ export default function Command() {
       }
     >
       {listError && <Form.Description title="Error" text={listError.message} />}
-      <Form.Dropdown id="workspace" title="Workspace" value={workspaceKey} onChange={setWorkspaceKey}>
+      <Form.Dropdown id="workspace" title="Workspace" value={workspaceKey} onChange={handleWorkspaceChange}>
         {workspaces.map((workspace) => (
           <Form.Dropdown.Item key={workspace.key} value={workspace.key} title={workspace.name} />
         ))}
       </Form.Dropdown>
-      <Form.Dropdown id="project" title="Project" value={projectKey} onChange={setProjectKey}>
+      <Form.Dropdown id="project" title="Project" value={projectKey} onChange={setChosenProject}>
         {projects.map((project) => (
           <Form.Dropdown.Item key={project.key} value={project.key} title={project.name} />
         ))}
